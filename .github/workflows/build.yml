@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -19,32 +19,40 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Debug SDK
+      - name: Setup Android SDK via sdkmanager
         run: |
-          ls -la /Applications/android-sdk* 2>/dev/null || echo "not at apps"
           echo "ANDROID_HOME=$ANDROID_HOME"
-          ls -la $ANDROID_HOME/ 2>/dev/null || echo "no ANDROID_HOME"
-          # Check common macOS locations
-          for dir in ~/Library/Android/sdk /usr/local/share/android-sdk /opt/homebrew/share/android-sdk; do
-            [ -d "$dir" ] && echo "FOUND SDK at $dir" && ls "$dir/" | head -10
-          done
-          # Set SDK path
-          if [ -d "$ANDROID_HOME" ]; then
-            echo "sdk.dir=$ANDROID_HOME" > local.properties
-          elif [ -d "$HOME/Library/Android/sdk" ]; then
-            echo "sdk.dir=$HOME/Library/Android/sdk" > local.properties
-          else
-            echo "sdk.dir=/usr/local/share/android-sdk" > local.properties
-          fi
-          cat local.properties
+          echo "=== Install cmdline-tools ==="
+          mkdir -p $HOME/android-sdk
+          cd $HOME/android-sdk
+          curl -sLo cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -qo cmdline-tools.zip
+          mkdir -p cmdline-tools/latest
+          mv cmdline-tools/* cmdline-tools/latest/ 2>/dev/null || true
+          rm -rf cmdline-tools.zip
+          export ANDROID_HOME=$HOME/android-sdk
+          echo "sdk.dir=$ANDROID_HOME" > $GITHUB_WORKSPACE/local.properties
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          
+          # Accept licenses and install platforms
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME "platforms;android-34" "build-tools;34.0.0" 2>&1 | tail -10
+          
+          echo "=== SDK installed ==="
+          ls -la $ANDROID_HOME/platforms/
+          ls -la $ANDROID_HOME/build-tools/
+
+      - name: Test Gradle wrapper
+        run: |
+          chmod +x gradlew
+          ./gradlew --version --no-daemon 2>&1 || echo "Wrapper failed, using system gradle"
 
       - name: Build APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          cat local.properties
+          export ANDROID_HOME=$HOME/android-sdk
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
