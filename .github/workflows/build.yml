@@ -8,8 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
 
     steps:
       - name: Checkout code
@@ -21,23 +19,24 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Fix SDK and create local.properties
-        run: |
-          echo "sdk.dir=$ANDROID_HOME" > local.properties
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          ls -la $ANDROID_HOME/ 2>/dev/null
-          ls $ANDROID_HOME/platforms/ 2>/dev/null
-          ls $ANDROID_HOME/build-tools/ 2>/dev/null
-          which sdkmanager 2>/dev/null || find $ANDROID_HOME -name sdkmanager -type f 2>/dev/null
-
-      - name: Build with Gradle
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: 8.5
-          arguments: assembleDebug --no-daemon --stacktrace --info
+
+      - name: Setup Android SDK
+        run: |
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          ls $ANDROID_HOME/platforms/ 2>/dev/null || echo "No platforms"
+          ls $ANDROID_HOME/build-tools/ 2>/dev/null || echo "No build-tools"
+
+      - name: Build APK
+        run: |
+          gradle wrapper --gradle-version=8.5
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
