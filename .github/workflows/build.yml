@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: macos-latest
 
     steps:
       - name: Checkout code
@@ -19,17 +19,31 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+
+      - name: Debug SDK
+        run: |
+          ls -la /Applications/android-sdk* 2>/dev/null || echo "not at apps"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls -la $ANDROID_HOME/ 2>/dev/null || echo "no ANDROID_HOME"
+          # Check common macOS locations
+          for dir in ~/Library/Android/sdk /usr/local/share/android-sdk /opt/homebrew/share/android-sdk; do
+            [ -d "$dir" ] && echo "FOUND SDK at $dir" && ls "$dir/" | head -10
+          done
+          # Set SDK path
+          if [ -d "$ANDROID_HOME" ]; then
+            echo "sdk.dir=$ANDROID_HOME" > local.properties
+          elif [ -d "$HOME/Library/Android/sdk" ]; then
+            echo "sdk.dir=$HOME/Library/Android/sdk" > local.properties
+          else
+            echo "sdk.dir=/usr/local/share/android-sdk" > local.properties
+          fi
+          cat local.properties
 
       - name: Build APK
         run: |
           chmod +x gradlew
-          echo "sdk.dir=$ANDROID_HOME" > local.properties
-          cat local.properties
           ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK
