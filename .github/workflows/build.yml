@@ -19,15 +19,18 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Create local.properties
-        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+      - name: Setup Android SDK (pre-installed)
+        run: |
+          export ANDROID_HOME=${ANDROID_HOME:-/usr/local/lib/android/sdk}
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          ls -la "$ANDROID_HOME/" 2>/dev/null || echo "SDK not at expected path"
 
       - name: Build APK
         run: |
           chmod +x gradlew
+          export ANDROID_HOME=${ANDROID_HOME:-/usr/local/lib/android/sdk}
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
           ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK
