@@ -6,6 +6,7 @@
     android:orientation="vertical"
     android:background="#121212">
 
+    <!-- WebView Area -->
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipeRefresh"
         android:layout_width="match_parent"
@@ -35,5 +36,16 @@
         </RelativeLayout>
 
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+    <!-- Bottom Navigation -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNav"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#1E1E1E"
+        app:itemIconTint="#888888"
+        app:itemTextColor="#888888"
+        app:menu="@menu/bottom_nav_menu"
+        app:labelVisibilityMode="labeled" />
 
 </LinearLayout>
