@@ -13,49 +13,55 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Debug - check environment
+        run: |
+          echo "=== JAVA ==="
+          java -version 2>&1
+          echo "=== ANDROID_HOME ==="
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "=== SDK check ==="
+          ls -la /usr/local/lib/android/sdk/ 2>/dev/null || echo "Not at default"
+          ls -la /opt/android-sdk/ 2>/dev/null || echo "Not at /opt"
+          echo "=== File check ==="
+          ls -la gradlew
+          ls -la gradle/wrapper/
+          echo "=== Properties ==="
+          cat gradle/wrapper/gradle-wrapper.properties
+          echo "=== Gradle check ==="
+          ./gradlew --version --no-daemon 2>&1 | head -20 || echo "Gradle failed"
+          exit 0
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
+      - name: Debug after JDK
         run: |
-          # Check if SDK already exists
-          if [ -d "$ANDROID_HOME" ]; then
-            echo "SDK found at $ANDROID_HOME"
-            ls "$ANDROID_HOME/"
-            echo "sdk.dir=$ANDROID_HOME" > local.properties
-          elif [ -d "/usr/local/lib/android/sdk" ]; then
-            echo "SDK found at /usr/local/lib/android/sdk"
-            export ANDROID_HOME=/usr/local/lib/android/sdk
-            ls "$ANDROID_HOME/"
-            echo "sdk.dir=$ANDROID_HOME" > local.properties
-          else
-            echo "No SDK found, downloading..."
-            mkdir -p $HOME/android-sdk
-            cd $HOME/android-sdk
-            curl -sL -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-            unzip -q cmdline-tools.zip
-            mkdir -p cmdline-tools/latest
-            mv cmdline-tools/* cmdline-tools/latest/ 2>/dev/null || true
-            export ANDROID_HOME=$HOME/android-sdk
-            echo "sdk.dir=$ANDROID_HOME" > $GITHUB_WORKSPACE/local.properties
-            yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME "platforms;android-34" "build-tools;34.0.0" 2>&1 | tail -5
-          fi
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          cat $GITHUB_WORKSPACE/local.properties
+          java -version 2>&1
+          ./gradlew --version --no-daemon 2>&1 | head -20
 
-      - name: Enable Gradle Wrapper
-        run: chmod +x gradlew
+      - name: Find Android SDK
+        run: |
+          for dir in /usr/local/lib/android/sdk $ANDROID_HOME $HOME/Android/Sdk /opt/android-sdk /opt/android; do
+            if [ -d "$dir" ]; then
+              echo "FOUND: $dir"
+              ls -la "$dir/" 2>/dev/null | head -20
+              find "$dir/platforms" -maxdepth 1 -name "android-*" 2>/dev/null | head -5
+              find "$dir/build-tools" -maxdepth 2 -name "aapt" 2>/dev/null | head -5
+            fi
+          done
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          cat local.properties
 
       - name: Build APK
         run: |
           ./gradlew assembleDebug --no-daemon --stacktrace 2>&1
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME || '/usr/local/lib/android/sdk' }}
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: premium-portal-apk
