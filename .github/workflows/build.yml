@@ -7,29 +7,11 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Debug - check environment
-        run: |
-          echo "=== JAVA ==="
-          java -version 2>&1
-          echo "=== ANDROID_HOME ==="
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "=== SDK check ==="
-          ls -la /usr/local/lib/android/sdk/ 2>/dev/null || echo "Not at default"
-          ls -la /opt/android-sdk/ 2>/dev/null || echo "Not at /opt"
-          echo "=== File check ==="
-          ls -la gradlew
-          ls -la gradle/wrapper/
-          echo "=== Properties ==="
-          cat gradle/wrapper/gradle-wrapper.properties
-          echo "=== Gradle check ==="
-          ./gradlew --version --no-daemon 2>&1 | head -20 || echo "Gradle failed"
-          exit 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -37,31 +19,20 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Debug after JDK
-        run: |
-          java -version 2>&1
-          ./gradlew --version --no-daemon 2>&1 | head -20
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Find Android SDK
-        run: |
-          for dir in /usr/local/lib/android/sdk $ANDROID_HOME $HOME/Android/Sdk /opt/android-sdk /opt/android; do
-            if [ -d "$dir" ]; then
-              echo "FOUND: $dir"
-              ls -la "$dir/" 2>/dev/null | head -20
-              find "$dir/platforms" -maxdepth 1 -name "android-*" 2>/dev/null | head -5
-              find "$dir/build-tools" -maxdepth 2 -name "aapt" 2>/dev/null | head -5
-            fi
-          done
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "sdk.dir=$ANDROID_HOME" > local.properties
-          cat local.properties
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Build APK
         run: |
-          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1
+          chmod +x gradlew
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          cat local.properties
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: premium-portal-apk
