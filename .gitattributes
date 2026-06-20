@@ -1,0 +1,16 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Shell scripts should have LF
+*.sh text eol=lf
+gradlew text eol=lf
+
+# Batch should have CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files
+*.jar binary
+*.png binary
+*.jpg binary
+*.webp binary
