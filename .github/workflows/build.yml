@@ -19,22 +19,41 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Check Android SDK
+      - name: Setup Android SDK
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "SDK root:"
-          ls -la /usr/local/lib/android/sdk/ 2>/dev/null || echo "Not found at default"
-          ls -la $ANDROID_HOME/ 2>/dev/null || echo "ANDROID_HOME not found"
-          echo "sdk.dir=$ANDROID_HOME" > local.properties
-          cat local.properties
+          # Check if SDK already exists
+          if [ -d "$ANDROID_HOME" ]; then
+            echo "SDK found at $ANDROID_HOME"
+            ls "$ANDROID_HOME/"
+            echo "sdk.dir=$ANDROID_HOME" > local.properties
+          elif [ -d "/usr/local/lib/android/sdk" ]; then
+            echo "SDK found at /usr/local/lib/android/sdk"
+            export ANDROID_HOME=/usr/local/lib/android/sdk
+            ls "$ANDROID_HOME/"
+            echo "sdk.dir=$ANDROID_HOME" > local.properties
+          else
+            echo "No SDK found, downloading..."
+            mkdir -p $HOME/android-sdk
+            cd $HOME/android-sdk
+            curl -sL -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+            unzip -q cmdline-tools.zip
+            mkdir -p cmdline-tools/latest
+            mv cmdline-tools/* cmdline-tools/latest/ 2>/dev/null || true
+            export ANDROID_HOME=$HOME/android-sdk
+            echo "sdk.dir=$ANDROID_HOME" > $GITHUB_WORKSPACE/local.properties
+            yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME "platforms;android-34" "build-tools;34.0.0" 2>&1 | tail -5
+          fi
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          cat $GITHUB_WORKSPACE/local.properties
 
-      - name: Build APK with Gradle
+      - name: Enable Gradle Wrapper
+        run: chmod +x gradlew
+
+      - name: Build APK
         run: |
-          chmod +x gradlew
           ./gradlew assembleDebug --no-daemon --stacktrace 2>&1
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME || '/usr/local/lib/android/sdk' }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
