@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
 
     steps:
       - name: Checkout code
@@ -22,18 +24,20 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Create local.properties
+      - name: Fix SDK and create local.properties
         run: |
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-          echo "sdk.dir=$ANDROID_HOME"
-          ls "$ANDROID_HOME/platforms/" || echo "No platforms dir"
-          ls "$ANDROID_HOME/build-tools/" || echo "No build-tools dir"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls -la $ANDROID_HOME/ 2>/dev/null
+          ls $ANDROID_HOME/platforms/ 2>/dev/null
+          ls $ANDROID_HOME/build-tools/ 2>/dev/null
+          which sdkmanager 2>/dev/null || find $ANDROID_HOME -name sdkmanager -type f 2>/dev/null
 
       - name: Build with Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: 8.5
-          arguments: assembleDebug --no-daemon --stacktrace
+          arguments: assembleDebug --no-daemon --stacktrace --info
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
