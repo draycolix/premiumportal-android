@@ -19,18 +19,16 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: 8.5
 
-      - name: Setup Android SDK
-        run: |
-          export ANDROID_HOME=/usr/local/lib/android/sdk
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "sdk.dir=$ANDROID_HOME" > local.properties
-          ls $ANDROID_HOME/platforms/ 2>/dev/null || echo "No platforms"
-          ls $ANDROID_HOME/build-tools/ 2>/dev/null || echo "No build-tools"
+      - name: Create local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
 
       - name: Build APK
         run: |
